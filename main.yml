@@ -1,0 +1,35 @@
+- name: Squid
+  hosts: all
+  sudo: true
+  handlers:
+  - name: restart
+    shell: squid -k kill || true && squid
+    when: ansible_distribution == 'FreeBSD'
+  - name: restart
+    shell: squid -k kill || true && squid
+    when: ansible_distribution == 'Debian'
+  tasks:
+  - set_fact:
+      squid_conf: /usr/local/etc/squid/squid.conf
+    when: ansible_distribution == 'FreeBSD'
+  - set_fact:
+      squid_conf: /etc/squid3/squid.conf
+    when: ansible_distribution == 'Debian'
+
+  - name: Install (FreeBSD)
+    pkgng: name=squid state=present
+    when: ansible_distribution == 'FreeBSD'
+    notify: restart
+  - name: Install (Debian)
+    apt: name=squid3 state=latest
+    when: ansible_distribution == 'Debian'
+    notify: restart
+
+  - name: Enable (FreeBSD)
+    when: ansible_distribution == 'FreeBSD'
+    notify: restart
+    lineinfile: dest=/etc/rc.conf regexp=^squid_enable= line=squid_enable=YES
+
+  - name: Configure
+    template: src=templates/squid.conf dest={{ squid_conf }}
+    notify: restart
